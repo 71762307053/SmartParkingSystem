@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}ParkSmart Admin - Occupancy & Reservations Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-container admin-container">
+    <!-- Admin Header -->
+    <header class="admin-header">
+        <div>
+            <div class="hero-badge badge-admin"><i class="fa-solid fa-shield-halved"></i> Control Panel</div>
+            <h1 class="hero-title">Parking Operations & Occupancy</h1>
+            <p class="hero-subtitle">Monitor real-time lot utilization, manage slot states, and review booking records.</p>
+        </div>
+        <div class="admin-top-actions">
+            <button class="btn btn-danger-outline" onclick="confirmResetSystem()">
+                <i class="fa-solid fa-arrows-rotate"></i> Reset System
+            </button>
+            <a href="{{ url_for('index') }}" class="btn btn-outline">
+                <i class="fa-solid fa-eye"></i> View Live Lot
+            </a>
+        </div>
+    </header>
+
+    <!-- Key Metrics Dashboard Cards -->
+    <div class="admin-metrics-grid">
+        <div class="metric-card">
+            <div class="metric-header">
+                <span class="metric-title">Total Capacity</span>
+                <span class="metric-icon bg-blue"><i class="fa-solid fa-parking"></i></span>
+            </div>
+            <h2 class="metric-value">{{ total_slots }}</h2>
+            <span class="metric-sub">Configured bays across 3 zones</span>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-header">
+                <span class="metric-title">Currently Available</span>
+                <span class="metric-icon bg-green"><i class="fa-solid fa-circle-check"></i></span>
+            </div>
+            <h2 class="metric-value text-green">{{ available_slots }}</h2>
+            <span class="metric-sub">Ready for incoming vehicles</span>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-header">
+                <span class="metric-title">Occupied / Reserved</span>
+                <span class="metric-icon bg-red"><i class="fa-solid fa-car-tunnel"></i></span>
+            </div>
+            <h2 class="metric-value text-red">{{ occupied_slots + reserved_slots }}</h2>
+            <span class="metric-sub">{{ reserved_slots }} reserved &bull; {{ occupied_slots }} parked</span>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-header">
+                <span class="metric-title">Total Revenue</span>
+                <span class="metric-icon bg-emerald"><i class="fa-solid fa-indian-rupee-sign"></i></span>
+            </div>
+            <h2 class="metric-value text-emerald">₹{{ total_revenue | int }}</h2>
+            <span class="metric-sub">{{ reservations|length }} total sessions recorded</span>
+        </div>
+    </div>
+
+    <!-- Live Slot Occupancy Matrix -->
+    <section class="admin-section">
+        <div class="section-header">
+            <div>
+                <h3><i class="fa-solid fa-network-wired"></i> Bay Status Overview</h3>
+                <p>Quick status check for every configured parking slot.</p>
+            </div>
+        </div>
+
+        <div class="admin-slot-matrix">
+            {% for slot in slots %}
+            <div class="matrix-cell status-{{ slot.status }}" title="Click to manage {{ slot.slot_number }}">
+                <span class="matrix-code">{{ slot.slot_number }}</span>
+                <span class="matrix-type">{{ slot.vehicle_type }}</span>
+                <span class="matrix-status">{{ slot.status }}</span>
+                {% if slot.status != 'available' %}
+                <button class="btn-micro-release" onclick="adminForceRelease('{{ slot.slot_number }}')">
+                    Free
+                </button>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- Reservations Record Table -->
+    <section class="admin-section">
+        <div class="section-header">
+            <div>
+                <h3><i class="fa-solid fa-list-check"></i> Parking Reservations & Occupancy Log</h3>
+                <p>Complete record of active and past vehicle sessions.</p>
+            </div>
+            <div class="table-controls">
+                <div class="search-box small">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="adminTableSearch" placeholder="Search vehicle, driver, code..." onkeyup="filterAdminTable()">
+                </div>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="data-table" id="reservationsTable">
+                <thead>
+                    <tr>
+                        <th>Pass ID</th>
+                        <th>Bay</th>
+                        <th>Vehicle No</th>
+                        <th>Driver Details</th>
+                        <th>Type</th>
+                        <th>Entry Time</th>
+                        <th>Duration / Exit</th>
+                        <th>Fee</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for res in reservations %}
+                    <tr class="res-row" data-status="{{ res.status }}">
+                        <td><span class="code-badge">{{ res.reservation_code }}</span></td>
+                        <td><strong class="text-white">{{ res.slot_number }}</strong></td>
+                        <td><span class="vehicle-plate">{{ res.vehicle_number }}</span></td>
+                        <td>
+                            <div class="driver-info">
+                                <span class="d-name">{{ res.driver_name }}</span>
+                                <span class="d-phone">{{ res.phone }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge-type {{ res.vehicle_type }}">{{ res.vehicle_type }}</span>
+                        </td>
+                        <td class="text-muted"><small>{{ res.entry_time }}</small></td>
+                        <td class="text-muted">
+                            {% if res.exit_time %}
+                                <small>{{ res.exit_time }}</small>
+                            {% else %}
+                                <span>{{ res.expected_hours }} hrs (Est.)</span>
+                            {% endif %}
+                        </td>
+                        <td><strong class="text-emerald">₹{{ res.total_amount | int }}</strong></td>
+                        <td>
+                            <span class="table-status-pill status-{{ res.status }}">
+                                {{ res.status | capitalize }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if res.status == 'active' %}
+                            <button class="btn btn-sm btn-outline-danger" onclick="adminForceRelease('{{ res.slot_number }}')">
+                                Release
+                            </button>
+                            {% else %}
+                            <span class="text-dim">Closed</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="10" class="text-center py-4 text-muted">No reservations recorded yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+{% endblock %}

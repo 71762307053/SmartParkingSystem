@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+
+{% block title %}ParkSmart - Live Parking Slots & Reservation{% endblock %}
+
+{% block content %}
+<div class="page-container">
+    <!-- Hero Header -->
+    <header class="hero-section">
+        <div class="hero-content">
+            <div class="hero-badge">
+                <i class="fa-solid fa-square-parking"></i> Automated Smart Parking
+            </div>
+            <h1 class="hero-title">Effortless Parking.<br><span class="text-gradient">Real-Time Availability.</span></h1>
+            <p class="hero-subtitle">Browse available parking bays, reserve your spot in seconds, and track slot occupancy with live updates.</p>
+        </div>
+
+        <!-- Quick Summary Stats -->
+        <div class="hero-stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon bg-blue"><i class="fa-solid fa-parking"></i></div>
+                <div class="stat-info">
+                    <span class="stat-label">Total Bays</span>
+                    <h3 class="stat-value" id="statTotal">{{ total_slots }}</h3>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon bg-green"><i class="fa-solid fa-circle-check"></i></div>
+                <div class="stat-info">
+                    <span class="stat-label">Available</span>
+                    <h3 class="stat-value text-green" id="statAvailable">{{ available_slots }}</h3>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon bg-red"><i class="fa-solid fa-car-side"></i></div>
+                <div class="stat-info">
+                    <span class="stat-label">Occupied / Reserved</span>
+                    <h3 class="stat-value text-red" id="statOccupied">{{ occupied_slots }}</h3>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Controls & Filter Toolbar -->
+    <div class="toolbar">
+        <div class="filter-group">
+            <button class="filter-btn active" data-filter="all" onclick="filterSlots('all')">
+                <i class="fa-solid fa-border-all"></i> All Bays
+            </button>
+            <button class="filter-btn" data-filter="Car" onclick="filterSlots('Car')">
+                <i class="fa-solid fa-car"></i> Four Wheeler (Zone A)
+            </button>
+            <button class="filter-btn" data-filter="Bike" onclick="filterSlots('Bike')">
+                <i class="fa-solid fa-motorcycle"></i> Two Wheeler (Zone B)
+            </button>
+            <button class="filter-btn" data-filter="EV" onclick="filterSlots('EV')">
+                <i class="fa-solid fa-bolt text-yellow"></i> EV Charging (Zone C)
+            </button>
+        </div>
+
+        <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="slotSearchInput" placeholder="Search slot (e.g. A-02)..." onkeyup="searchSlots()">
+        </div>
+    </div>
+
+    <!-- Parking Grid Section -->
+    <section class="parking-section">
+        <div class="section-header">
+            <div>
+                <h2>Live Parking Matrix</h2>
+                <p>Click on any <span class="badge-inline green">Available</span> slot to reserve instantly.</p>
+            </div>
+            <div class="legend-list">
+                <span class="legend-item"><span class="dot available"></span> Available</span>
+                <span class="legend-item"><span class="dot reserved"></span> Reserved</span>
+                <span class="legend-item"><span class="dot occupied"></span> Occupied</span>
+            </div>
+        </div>
+
+        <div class="slots-grid" id="slotsGrid">
+            {% for slot in slots %}
+            <div class="slot-card status-{{ slot.status }}" 
+                 data-slot="{{ slot.slot_number }}"
+                 data-zone="{{ slot.zone }}"
+                 data-type="{{ slot.vehicle_type }}"
+                 data-status="{{ slot.status }}"
+                 data-rate="{{ slot.hourly_rate }}"
+                 onclick="handleSlotClick('{{ slot.slot_number }}', '{{ slot.status }}', '{{ slot.vehicle_type }}', {{ slot.hourly_rate }})">
+                
+                <div class="slot-top">
+                    <span class="slot-badge type-{{ slot.vehicle_type }}">
+                        {% if slot.vehicle_type == 'Car' %}
+                            <i class="fa-solid fa-car"></i> Car
+                        {% elif slot.vehicle_type == 'Bike' %}
+                            <i class="fa-solid fa-motorcycle"></i> Bike
+                        {% else %}
+                            <i class="fa-solid fa-bolt"></i> EV Fast
+                        {% endif %}
+                    </span>
+                    <span class="status-pill status-pill-{{ slot.status }}">{{ slot.status | capitalize }}</span>
+                </div>
+
+                <div class="slot-center">
+                    <h3 class="slot-code">{{ slot.slot_number }}</h3>
+                    <p class="slot-zone-name">{{ slot.zone }}</p>
+                </div>
+
+                <div class="slot-bottom">
+                    <div class="slot-rate">
+                        <span class="rate-val">₹{{ slot.hourly_rate | int }}</span>
+                        <span class="rate-unit">/hr</span>
+                    </div>
+
+                    {% if slot.status == 'available' %}
+                        <button class="btn-slot-action btn-book">Reserve</button>
+                    {% else %}
+                        <button class="btn-slot-action btn-occupied" onclick="event.stopPropagation(); quickReleasePrompt('{{ slot.slot_number }}')">
+                            Release
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+
+<!-- Reservation Modal -->
+<div id="reserveModal" class="modal-backdrop hidden">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-calendar-check"></i> Reserve Parking Slot</h3>
+            <button class="close-btn" onclick="closeModal('reserveModal')">&times;</button>
+        </div>
+        <form id="reserveForm" onsubmit="handleReserveSubmit(event)">
+            <div class="modal-body">
+                <div class="selected-slot-preview">
+                    <div>
+                        <span class="preview-label">Selected Bay</span>
+                        <h2 class="preview-code" id="modalSlotNumber">A-01</h2>
+                    </div>
+                    <div>
+                        <span class="preview-label">Base Rate</span>
+                        <h3 class="preview-rate" id="modalHourlyRate">₹30 / hr</h3>
+                    </div>
+                </div>
+
+                <input type="hidden" id="formSlotNumber">
+                <input type="hidden" id="formHourlyRate">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="formVehicleNum">Vehicle Registration No. *</label>
+                        <div class="input-icon-wrap">
+                            <i class="fa-solid fa-car"></i>
+                            <input type="text" id="formVehicleNum" placeholder="e.g. TN-37-CZ-4567" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="formVehicleType">Vehicle Category</label>
+                        <select id="formVehicleType" class="form-select">
+                            <option value="Car">Four Wheeler (Car)</option>
+                            <option value="Bike">Two Wheeler (Bike)</option>
+                            <option value="EV">Electric Vehicle (EV)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="formDriverName">Driver / Customer Name *</label>
+                        <div class="input-icon-wrap">
+                            <i class="fa-solid fa-user"></i>
+                            <input type="text" id="formDriverName" placeholder="e.g. Rajesh Kumar" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="formPhone">Contact Mobile Number *</label>
+                        <div class="input-icon-wrap">
+                            <i class="fa-solid fa-phone"></i>
+                            <input type="tel" id="formPhone" placeholder="e.g. 9876543210" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="hours-header">
+                        <label for="formHours">Expected Duration (Hours)</label>
+                        <span class="duration-display" id="durationDisplay">2 Hours</span>
+                    </div>
+                    <input type="range" id="formHours" min="1" max="12" value="2" class="form-range" oninput="updateCostEstimate()">
+                </div>
+
+                <div class="cost-summary">
+                    <span class="cost-label">Estimated Total Amount:</span>
+                    <span class="cost-total" id="formEstimatedCost">₹60</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" onclick="closeModal('reserveModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="btnReserveSubmit">
+                    <i class="fa-solid fa-ticket"></i> Confirm & Book Pass
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

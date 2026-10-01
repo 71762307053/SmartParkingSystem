@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+*.egg-info/
+venv/
+env/
+.env
+
+# Persistent DB files can be tracked or excluded based on volume
+data/*.db-journal
+
+# OS generated
+.DS_Store
+Thumbs.db
