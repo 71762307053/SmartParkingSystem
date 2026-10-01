@@ -8,15 +8,15 @@
 **OCTOBER 2026**
 
 Submitted by  
-**NAME:** [Your Name]  
-**REGISTER NO:** [Your Register Number]  
+**NAME:** SUMMERJEET SINGH  
+**REGISTER NO:** 71762307053  
 **DEPARTMENT:** Information Technology  
 
 ---
 
 ## BONAFIDE CERTIFICATE
 
-Certified that this project report titled **“SMART PARKING MANAGEMENT SYSTEM”** is the bonafide work of **[Your Register No] - [Your Name]** completed during the academic year 2025–2026 – Semester VII for the project presentation of **23IT723 - DEVOPS LABORATORY** under our supervision.
+Certified that this project report titled **“SMART PARKING MANAGEMENT SYSTEM”** is the bonafide work of **71762307053 - SUMMERJEET SINGH** completed during the academic year 2025–2026 – Semester VII for the project presentation of **23IT723 - DEVOPS LABORATORY** under our supervision.
 
 Certified that the candidate was examined by using the project work examination.
 
@@ -484,7 +484,7 @@ git add .
 git commit -m "Finalize Smart Parking Management System CI/CD project"
 
 # Add remote and push
-git remote add origin https://github.com/[your-username]/SmartParkingSystem.git
+git remote add origin https://github.com/71762307053/SmartParkingSystem.git
 git branch -M master
 git push -u origin master
 ```
